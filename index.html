@@ -19,8 +19,10 @@
     h1 { margin:0 0 8px; font-size:clamp(28px,4vw,42px); letter-spacing:-.045em; }
     .subtitle,.unit-note,.assumption { margin:0; color:var(--muted); }
     .copyright { display:block; margin-top:6px; font-size:13px; }
+    .page-links { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; }
     .analysis-link { flex:0 0 auto; margin-top:4px; padding:13px 20px; border:2px solid var(--accent); border-radius:999px; background:var(--accent); color:#fff; font-size:16px; font-weight:800; text-decoration:none; box-shadow:0 8px 18px rgb(18 97 160 / 18%); }
     .analysis-link:hover { border-color:var(--accent-dark); background:var(--accent-dark); }
+    .map-link { border-color:var(--accent-dark); background:var(--accent-dark); }
     .card { padding:28px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:0 12px 30px rgb(24 39 75 / 7%); }
     form { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(220px,1fr) auto; gap:16px; align-items:end; }
     label { display:block; margin-bottom:7px; font-size:14px; font-weight:700; }
@@ -50,7 +52,7 @@
       .page { margin:28px auto; } .card { padding:20px; }
       form { grid-template-columns:1fr; } button { width:100%; }
       .result-head { display:block; } .summary { margin-top:6px; text-align:left; }
-      .title-row { display:block; } .analysis-link { display:inline-block; margin-top:14px; }
+      .title-row { display:block; } .page-links { display:grid; justify-content:stretch; margin-top:14px; } .analysis-link { display:block; margin-top:0; text-align:center; }
     }
   </style>
 </head>
@@ -62,7 +64,10 @@
           <h1>보유세 계산기</h1>
           <p class="subtitle">공시가격과 과세 대상을 입력하면 2026~2028년 예상 보유세를 계산합니다.<span class="copyright">ⓒ홍정훈 cloudmate0307@gmail.com</span></p>
         </div>
-        <a class="analysis-link" href="apartments.html">대표 아파트 분석 →</a>
+        <div class="page-links">
+          <a class="analysis-link" href="apartments.html">대표 아파트 분석 →</a>
+          <a class="analysis-link map-link" href="map.html">서울 종부세 대상 지도 →</a>
+        </div>
       </div>
     </header>
     <section class="card" aria-labelledby="calculator-title">
