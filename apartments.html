@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>공시가격대별 대표 아파트 보유세 분석</title>
+  <title>서울 대표 아파트 보유세 변화</title>
   <style>
     :root {
       color-scheme: light;
@@ -46,6 +46,7 @@
     .band-button:hover { border-color:#91b7d5; color:var(--accent); }
     .band-button[aria-pressed="true"] { border-color:var(--accent); background:var(--accent); color:#fff; }
     .dashboard { display:grid; grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr); gap:20px; }
+    .dashboard > *, .hero > * { min-width:0; width:100%; }
     .panel { border:1px solid var(--line); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); }
     .property-panel { padding:24px; }
     .eyebrow { margin:0 0 8px; color:var(--accent); font-size:13px; font-weight:850; letter-spacing:.02em; }
@@ -59,7 +60,7 @@
     .info-grid div:nth-last-child(-n+2) { border-bottom:0; }
     .info-grid dt { margin-bottom:3px; color:var(--muted); font-size:12px; }
     .info-grid dd { margin:0; font-weight:750; }
-    .analysis-panel { padding:24px; }
+    .analysis-panel { min-width:0; padding:24px; }
     .section-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
     .section-head h2 { margin:0; font-size:22px; letter-spacing:-.03em; }
     .section-head p { margin:3px 0 0; color:var(--muted); font-size:13px; }
@@ -77,7 +78,7 @@
     .bar-value { margin-bottom:7px; font-size:12px; font-weight:800; }
     .bar { width:min(64px,70%); min-height:7px; height:var(--bar-height); border-radius:9px 9px 3px 3px; background:linear-gradient(180deg,#4b91c6,var(--accent-dark)); transition:height .25s ease; }
     .bar-year { margin-top:7px; color:var(--muted); font-size:12px; font-weight:700; }
-    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; }
+    .table-wrap { width:100%; max-width:100%; overflow-x:auto; border:1px solid var(--line); border-radius:14px; }
     table { width:100%; min-width:580px; border-collapse:collapse; }
     th,td { padding:11px 14px; border-bottom:1px solid var(--line); }
     thead th { background:#edf2f6; font-size:13px; text-align:right; }
@@ -89,7 +90,8 @@
     .method { margin-top:16px; color:var(--muted); font-size:12px; }
     [hidden] { display:none!important; }
     @media (max-width:850px) {
-      .hero,.dashboard { grid-template-columns:1fr; }
+      .hero,.dashboard { display:flex; flex-direction:column; width:100%; }
+      .hero > *,.dashboard > * { flex:0 0 auto; width:100%; max-width:100%; }
       .hero { align-items:stretch; }
       .scenario-wrap { box-shadow:none; }
     }
@@ -112,7 +114,7 @@
 
     <section class="hero">
       <div>
-        <h1>가격대가 달라지면<br>보유세는 어떻게 변할까</h1>
+        <h1>서울 대표 아파트<br>보유세 변화</h1>
         <p>공시가격 구간별 대표 아파트를 선택해 기본 정보와 2026~2028년 예상 종합부동산세·보유세 변화를 살펴봅니다.</p>
       </div>
       <div class="scenario-wrap">
