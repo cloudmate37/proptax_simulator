@@ -39,14 +39,17 @@
     .summary { color:var(--muted); text-align:right; }
     .change-summary { margin:0 0 14px; padding:14px 16px; border-radius:12px; background:var(--result); font-weight:700; }
     .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:0 8px 22px rgb(24 39 75 / 5%); }
-    table { width:100%; border-collapse:collapse; min-width:680px; }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:680px; }
     th,td { padding:13px 18px; border-bottom:1px solid var(--line); }
     thead th { background:#edf2f6; text-align:right; font-size:14px; }
     thead th:first-child,tbody th { text-align:left; }
     tbody th { width:240px; background:#fafbfc; font-size:14px; }
+    .table-wrap thead th:first-child,.table-wrap tbody th { position:sticky; left:0; z-index:2; min-width:210px; box-shadow:4px 0 8px rgb(0 0 0 / 6%); }
+    .table-wrap thead th:first-child { z-index:3; background:#edf2f6; }
     tbody td { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
     tbody tr.total th,tbody tr.total td { background:var(--result); font-weight:800; }
+    .method { margin:14px 0 0; color:var(--muted); font-size:12px; }
     [hidden] { display:none!important; }
     @media (max-width:760px) {
       .page { margin:28px auto; } .card { padding:20px; }
@@ -62,11 +65,11 @@
       <div class="title-row">
         <div>
           <h1>보유세 계산기</h1>
-          <p class="subtitle">공시가격과 과세 대상을 입력하면 2026~2028년 예상 보유세를 계산합니다.<span class="copyright">ⓒ홍정훈 cloudmate0307@gmail.com (문의 및 오류제보)</span></p>
+          <p class="subtitle">공시가격과 과세 대상을 입력하면 2026~2028년 예상 보유세를 계산합니다.<span class="copyright">ⓒ홍정훈 cloudmate0307@gmail.com</span></p>
         </div>
         <div class="page-links">
-          <a class="analysis-link" href="apartments.html">서울 대표 아파트 보유세 변화 분석 →</a>
-          <a class="analysis-link map-link" href="map.html">서울 종합부동산세 대상 아파트 분포 →</a>
+          <a class="analysis-link" href="apartments.html">대표 아파트 분석 →</a>
+          <a class="analysis-link map-link" href="map.html">서울 종부세 대상 지도 →</a>
         </div>
       </div>
     </header>
@@ -75,7 +78,7 @@
       <form id="tax-form" novalidate>
         <div>
           <label for="price">공시가격 (만원)</label>
-          <input id="price" name="price" type="number" min="0" step="1000" value="300000" inputmode="numeric" required>
+          <input id="price" name="price" type="number" min="0" step="1000" value="320000" inputmode="numeric" required>
         </div>
         <div>
           <label for="target">대상</label>
@@ -83,8 +86,8 @@
         </div>
         <button type="submit">계산하기</button>
       </form>
-      <p class="unit-note">예: 30억원은 300000(만원)으로 입력하세요. 모든 금액은 만원 단위입니다.</p>
-      <p class="assumption">다주택자는 주택별 공시가격이 동일하고, 공동명의는 부부가 50%씩 소유한다고 가정합니다. <br> 시세 변화를 예측하기 어렵기 때문에 2026~2028년 공시가격이 동일하다는 조건하에 계산한 결과입니다.</p>
+      <p class="unit-note">예: 32억원은 320,000만원으로 입력하세요. 모든 금액은 만원 단위입니다.</p>
+      <p class="assumption">다주택자는 주택별 공시가격이 동일하고, 공동명의는 부부가 50%씩 소유한다고 가정합니다.</p>
       <p id="error" class="error" role="alert" aria-live="polite"></p>
     </section>
     <section id="result" hidden aria-labelledby="result-title">
@@ -99,6 +102,7 @@
           <tbody id="result-body"></tbody>
         </table>
       </div>
+      <p class="method">※ 공시가격이 2026~2028년 동일하다고 가정한 모의 계산입니다. 세액은 만원 단위 반올림 값이며 실제 과세액과 다를 수 있습니다.</p>
     </section>
   </main>
 
