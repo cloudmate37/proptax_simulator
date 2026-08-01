@@ -31,6 +31,7 @@
     .result-head { display:flex; justify-content:space-between; gap:20px; align-items:end; margin:36px 0 12px; }
     .result-head h2 { margin:0; font-size:22px; }
     .summary { color:var(--muted); text-align:right; }
+    .change-summary { margin:0 0 14px; padding:14px 16px; border-radius:12px; background:var(--result); font-weight:700; }
     .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:0 8px 22px rgb(24 39 75 / 5%); }
     table { width:100%; border-collapse:collapse; min-width:680px; }
     th,td { padding:13px 18px; border-bottom:1px solid var(--line); }
@@ -59,7 +60,7 @@
       <form id="tax-form" novalidate>
         <div>
           <label for="price">공시가격 (만원)</label>
-          <input id="price" name="price" type="number" min="1" step="1" value="320000" inputmode="numeric" required>
+          <input id="price" name="price" type="number" min="0" step="1000" value="320000" inputmode="numeric" required>
         </div>
         <div>
           <label for="target">대상</label>
@@ -76,6 +77,7 @@
         <h2 id="result-title">계산 결과</h2>
         <div id="summary" class="summary"></div>
       </div>
+      <p id="change-summary" class="change-summary"></p>
       <div class="table-wrap">
         <table>
           <thead><tr><th scope="col">구분 (만원)</th><th scope="col">2026</th><th scope="col">2027</th><th scope="col">2028</th></tr></thead>
@@ -214,6 +216,7 @@
     const resultSection=document.querySelector('#result');
     const resultBody=document.querySelector('#result-body');
     const summary=document.querySelector('#summary');
+    const changeSummary=document.querySelector('#change-summary');
     const error=document.querySelector('#error');
     for(const 대상 of Object.keys(산식)){
       const option=document.createElement('option'); option.value=대상; option.textContent=대상; targetSelect.append(option);
@@ -230,6 +233,16 @@
         resultBody.append(tr);
       }
       summary.textContent=`${대상} · 공시가격 ${numberFormat.format(공시가격)}만원`;
+      const 금액값=값=>Number(String(값).replaceAll(',',''))||0;
+      const 시작연도=years[0];
+      const 종료연도=years[years.length-1];
+      const 공동명의배수=공동명의?2:1;
+      const 보유세항목=공동명의?'보유세(부부합산)':'보유세(A:E)';
+      const 시작종부세=금액값(결과[시작연도]['종합부동산세(A)'])*공동명의배수;
+      const 종료종부세=금액값(결과[종료연도]['종합부동산세(A)'])*공동명의배수;
+      const 시작보유세=금액값(결과[시작연도][보유세항목]);
+      const 종료보유세=금액값(결과[종료연도][보유세항목]);
+      changeSummary.textContent=`${시작연도}년에서 ${종료연도}년까지 종합부동산세는 ${numberFormat.format(시작종부세)}만원에서 ${numberFormat.format(종료종부세)}만원으로 변하고, 보유세는 ${numberFormat.format(시작보유세)}만원에서 ${numberFormat.format(종료보유세)}만원으로 변합니다.`;
       resultSection.hidden=false;
     }
     form.addEventListener('submit',event=>{
