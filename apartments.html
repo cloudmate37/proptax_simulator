@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>공시가격대별 대표 아파트 보유세 분석</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink:#17202a;
+      --muted:#667085;
+      --line:#dfe4ea;
+      --surface:#fff;
+      --wash:#f3f6f8;
+      --accent:#1261a0;
+      --accent-dark:#0b4675;
+      --accent-soft:#e9f4fb;
+      --warm:#d05a2b;
+      --warm-soft:#fff0e8;
+      --down:#176b87;
+      --shadow:0 14px 36px rgb(24 39 75 / 8%);
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      background:var(--wash);
+      color:var(--ink);
+      font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      line-height:1.5;
+    }
+    button,select { font:inherit; }
+    button { cursor:pointer; }
+    .page { width:min(1160px,calc(100% - 32px)); margin:42px auto 72px; }
+    .topbar { display:flex; justify-content:space-between; gap:20px; align-items:center; margin-bottom:28px; }
+    .back-link { color:var(--accent); font-size:14px; font-weight:750; text-decoration:none; }
+    .source-note { color:var(--muted); font-size:13px; }
+    .hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,.45fr); gap:26px; align-items:end; margin-bottom:24px; }
+    h1 { margin:0 0 10px; font-size:clamp(30px,4.8vw,52px); line-height:1.13; letter-spacing:-.055em; }
+    .hero p { margin:0; color:var(--muted); max-width:720px; }
+    .scenario-wrap { padding:18px; border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:var(--shadow); }
+    .scenario-wrap label { display:block; margin-bottom:7px; font-size:13px; font-weight:800; }
+    .scenario-wrap select { width:100%; min-height:44px; padding:0 12px; border:1px solid #b8c1cb; border-radius:10px; background:#fff; color:var(--ink); }
+    .scenario-note { margin:8px 0 0!important; font-size:12px; }
+    .bands { display:flex; gap:8px; padding:8px 0 16px; overflow-x:auto; scrollbar-width:thin; }
+    .band-button { flex:0 0 auto; min-height:40px; padding:0 15px; border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--muted); font-size:13px; font-weight:750; }
+    .band-button:hover { border-color:#91b7d5; color:var(--accent); }
+    .band-button[aria-pressed="true"] { border-color:var(--accent); background:var(--accent); color:#fff; }
+    .dashboard { display:grid; grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr); gap:20px; }
+    .panel { border:1px solid var(--line); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); }
+    .property-panel { padding:24px; }
+    .eyebrow { margin:0 0 8px; color:var(--accent); font-size:13px; font-weight:850; letter-spacing:.02em; }
+    .property-title { margin:0 0 4px; font-size:30px; line-height:1.2; letter-spacing:-.04em; }
+    .property-address { margin:0 0 24px; color:var(--muted); }
+    .price-card { margin-bottom:20px; padding:18px; border-radius:15px; background:linear-gradient(135deg,var(--accent-dark),var(--accent)); color:#fff; }
+    .price-card span { display:block; font-size:13px; opacity:.78; }
+    .price-card strong { display:block; margin-top:2px; font-size:31px; letter-spacing:-.03em; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; margin:0; }
+    .info-grid div { padding:13px 0; border-bottom:1px solid var(--line); }
+    .info-grid div:nth-last-child(-n+2) { border-bottom:0; }
+    .info-grid dt { margin-bottom:3px; color:var(--muted); font-size:12px; }
+    .info-grid dd { margin:0; font-weight:750; }
+    .analysis-panel { padding:24px; }
+    .section-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
+    .section-head h2 { margin:0; font-size:22px; letter-spacing:-.03em; }
+    .section-head p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+    .change-summary { margin:0 0 18px; padding:15px 17px; border-radius:13px; background:var(--accent-soft); font-weight:750; }
+    .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+    .kpi { padding:15px; border:1px solid var(--line); border-radius:14px; }
+    .kpi span { color:var(--muted); font-size:12px; }
+    .kpi strong { display:block; margin-top:3px; font-size:23px; letter-spacing:-.03em; }
+    .kpi.up { border-color:#efc0ad; background:var(--warm-soft); }
+    .kpi.up strong { color:var(--warm); }
+    .kpi.down { border-color:#b7d5df; background:#eef8fb; }
+    .kpi.down strong { color:var(--down); }
+    .chart { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; min-height:210px; margin:0 0 20px; padding:18px 14px 10px; border:1px solid var(--line); border-radius:14px; background:#fbfcfd; }
+    .bar-group { display:flex; flex-direction:column; justify-content:end; align-items:center; min-width:0; }
+    .bar-value { margin-bottom:7px; font-size:12px; font-weight:800; }
+    .bar { width:min(64px,70%); min-height:7px; height:var(--bar-height); border-radius:9px 9px 3px 3px; background:linear-gradient(180deg,#4b91c6,var(--accent-dark)); transition:height .25s ease; }
+    .bar-year { margin-top:7px; color:var(--muted); font-size:12px; font-weight:700; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; }
+    table { width:100%; min-width:580px; border-collapse:collapse; }
+    th,td { padding:11px 14px; border-bottom:1px solid var(--line); }
+    thead th { background:#edf2f6; font-size:13px; text-align:right; }
+    thead th:first-child,tbody th { text-align:left; }
+    tbody th { background:#fafbfc; font-size:13px; }
+    tbody td { text-align:right; font-variant-numeric:tabular-nums; }
+    tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
+    tbody tr.total th,tbody tr.total td { background:var(--accent-soft); font-weight:850; }
+    .empty { grid-column:1/-1; padding:52px 24px; text-align:center; }
+    .empty h2 { margin:0 0 8px; }
+    .empty p { margin:0; color:var(--muted); }
+    .method { margin-top:16px; color:var(--muted); font-size:12px; }
+    [hidden] { display:none!important; }
+    @media (max-width:850px) {
+      .hero,.dashboard { grid-template-columns:1fr; }
+      .hero { align-items:stretch; }
+      .scenario-wrap { box-shadow:none; }
+    }
+    @media (max-width:560px) {
+      .page { width:min(100% - 22px,1160px); margin-top:22px; }
+      .topbar { align-items:start; }
+      .source-note { text-align:right; }
+      .property-panel,.analysis-panel { padding:18px; }
+      .kpis { grid-template-columns:1fr; }
+      .property-title { font-size:26px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topbar">
+      <a class="back-link" href="index.html">← 보유세 계산기</a>
+      <span class="source-note">자료: 공시가격대별_대표아파트.csv · 2026년 기준</span>
+    </div>
+
+    <section class="hero">
+      <div>
+        <h1>가격대가 달라지면<br>보유세는 어떻게 변할까</h1>
+        <p>공시가격 구간별 대표 아파트를 선택해 기본 정보와 2026~2028년 예상 종합부동산세·보유세 변화를 살펴봅니다.</p>
+      </div>
+      <div class="scenario-wrap">
+        <label for="scenario">과세 시나리오</label>
+        <select id="scenario">
+          <option value="1주택자_실거주">1주택자 · 실거주</option>
+          <option value="1주택자_비거주">1주택자 · 비거주</option>
+          <option value="1주택자_실거주_공동명의">1주택자 · 실거주 · 공동명의</option>
+        </select>
+        <p id="scenario-note" class="scenario-note">단독명의 1주택 실거주 기준입니다.</p>
+      </div>
+    </section>
+
+    <nav id="bands" class="bands" aria-label="공시가격 구간"></nav>
+
+    <section id="dashboard" class="dashboard" aria-live="polite">
+      <article class="panel property-panel">
+        <p id="band-label" class="eyebrow"></p>
+        <h2 id="property-title" class="property-title"></h2>
+        <p id="property-address" class="property-address"></p>
+        <div class="price-card">
+          <span>2026년 공시가격</span>
+          <strong id="official-price"></strong>
+        </div>
+        <dl class="info-grid">
+          <div><dt>위치</dt><dd id="info-location"></dd></div>
+          <div><dt>단지명</dt><dd id="info-complex"></dd></div>
+          <div><dt>동명</dt><dd id="info-building"></dd></div>
+          <div><dt>호명</dt><dd id="info-unit"></dd></div>
+          <div><dt>전용면적</dt><dd id="info-area"></dd></div>
+          <div><dt>기준연도</dt><dd id="info-year"></dd></div>
+        </dl>
+      </article>
+
+      <article class="panel analysis-panel">
+        <div class="section-head">
+          <div>
+            <h2>보유세 변화 분석</h2>
+            <p id="analysis-basis"></p>
+          </div>
+        </div>
+        <p id="change-summary" class="change-summary"></p>
+        <div class="kpis">
+          <div class="kpi"><span>2026년 보유세</span><strong id="holding-2026"></strong></div>
+          <div class="kpi"><span>2028년 보유세</span><strong id="holding-2028"></strong></div>
+          <div id="change-kpi" class="kpi"><span>2년간 증감</span><strong id="holding-change"></strong></div>
+        </div>
+        <div id="tax-chart" class="chart" role="img" aria-label="2026년부터 2028년까지 보유세 변화 막대그래프"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">구분 (만원)</th><th scope="col">2026</th><th scope="col">2027</th><th scope="col">2028</th></tr></thead>
+            <tbody id="tax-table"></tbody>
+          </table>
+        </div>
+        <p class="method">※ 공시가격이 2026~2028년 동일하다고 가정한 모의 계산입니다. 세액은 만원 단위 반올림 값이며 실제 과세액과 다를 수 있습니다.</p>
+      </article>
+
+      <article id="empty" class="panel empty" hidden>
+        <h2>이 구간의 대표 아파트 데이터가 없습니다.</h2>
+        <p>CSV에 100억원 초과 행을 추가하면 이 페이지에 자동으로 표시할 수 있습니다.</p>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    'use strict';
+
+    const apartments=[
+      {band:'12',location:'서울특별시 도봉구 도봉동',complex:'한신',building:'111',unit:'704',floor:'7',area:84.94,price:35800,year:2026},
+      {band:'15',location:'서울특별시 강동구 상일동',complex:'고덕아르테온',building:'317',unit:'805',floor:'8',area:84.97,price:144100,year:2026},
+      {band:'20',location:'서울특별시 송파구 신천동',complex:'파크리오',building:'113',unit:'1403',floor:'14',area:84.9,price:196100,year:2026},
+      {band:'25',location:'서울특별시 송파구 잠실동',complex:'리센츠',building:'217',unit:'1502',floor:'15',area:84.99,price:238800,year:2026},
+      {band:'30',location:'서울특별시 송파구 잠실동',complex:'주공아파트5단지',building:'508',unit:'1204',floor:'12',area:76.5,price:270600,year:2026},
+      {band:'40',location:'서울특별시 서초구 반포동',complex:'래미안퍼스티지',building:'120',unit:'1201',floor:'12',area:84.93,price:357300,year:2026},
+      {band:'50',location:'서울특별시 서초구 반포동',complex:'래미안원베일리',building:'118',unit:'1102',floor:'11',area:84.98,price:459400,year:2026},
+      {band:'100',location:'서울특별시 강남구 압구정동',complex:'신현대11차',building:'108',unit:'1206',floor:'12',area:183.41,price:815700,year:2026}
+    ];
+    const bands=[
+      {id:'12',label:'12억원 이하'},
+      {id:'15',label:'12~15억원 이하'},
+      {id:'20',label:'15~20억원 이하'},
+      {id:'25',label:'20~25억원 이하'},
+      {id:'30',label:'25~30억원 이하'},
+      {id:'40',label:'30~40억원 이하'},
+      {id:'50',label:'40~50억원 이하'},
+      {id:'100',label:'50~100억원 이하'},
+      {id:'over100',label:'100억원 초과'}
+    ];
+    const years=[2026,2027,2028];
+    const rates={
+      2026:{1:.005,2:.007,3:.010,4:.013,5:.015,6:.020,7:.027},
+      2027:{1:.005,2:.007,3:.013,4:.015,5:.020,6:.027,7:.035},
+      2028:{1:.005,2:.007,3:.013,4:.020,5:.030,6:.040,7:.050}
+    };
+    const deductions={
+      2026:{1:0,2:150,3:360,4:960,5:2650,6:6400,7:15200},
+      2027:{1:0,2:150,3:360,4:1140,5:3090,6:8090,7:19970},
+      2028:{1:0,2:150,3:360,4:1140,5:3740,6:11240,7:28840}
+    };
+    const rules={
+      '1주택자_실거주':{base:{2026:120000,2027:140000,2028:140000},ratio:{2026:.6,2027:.7,2028:.7}},
+      '1주택자_비거주':{base:{2026:120000,2027:90000,2028:90000},ratio:{2026:.6,2027:.7,2028:.7}},
+      '1주택자_실거주_공동명의':{base:{2026:90000,2027:110000,2028:110000},ratio:{2026:.6,2027:.7,2028:.7}}
+    };
+    const bracketOffsets={1:0,2:30000,3:60000,4:120000,5:250000,6:500000,7:940000};
+    const numberFormat=new Intl.NumberFormat('ko-KR',{maximumFractionDigits:0});
+    const decimalFormat=new Intl.NumberFormat('ko-KR',{maximumFractionDigits:2});
+
+    function bracketFor(value){
+      if(value<=30000)return 1;
+      if(value<=60000)return 2;
+      if(value<=120000)return 3;
+      if(value<=250000)return 4;
+      if(value<=500000)return 5;
+      if(value<=940000)return 6;
+      return 7;
+    }
+
+    function calculateTax(totalPrice,scenario){
+      const joint=scenario.endsWith('_공동명의');
+      const multiplier=joint?2:1;
+      const price=joint?totalPrice/2:totalPrice;
+      const rule=rules[scenario];
+      const result={};
+      const raw={};
+
+      for(const year of years){
+        const base=rule.base[year];
+        const afterDeduction=price-base;
+        let comprehensive=0;
+        let rural=0;
+
+        if(afterDeduction>0){
+          const taxBase=afterDeduction*rule.ratio[year];
+          const bracket=bracketFor(taxBase);
+          const basicTax=deductions[year][bracket]+(taxBase-bracketOffsets[bracket])*rates[year][bracket];
+          const propertyDeduction=taxBase*.45*.004;
+          comprehensive=basicTax-propertyDeduction;
+          rural=comprehensive*.2;
+        }
+
+        const propertyTax=57+(price*.45-30000)*.004;
+        const cityTax=price*.45*.0014;
+        const educationTax=propertyTax*.2;
+        let holdingTax=comprehensive+rural+propertyTax+cityTax+educationTax;
+
+        if(year>=2027&&afterDeduction>0&&raw[year-1].comprehensive!==null){
+          const ceiling=(raw[year-1].comprehensive+raw[year-1].propertyTax)*2;
+          if(holdingTax>ceiling*2)holdingTax=ceiling;
+        }
+
+        raw[year]={comprehensive:afterDeduction>0?comprehensive:null,propertyTax,holdingTax};
+        result[year]={
+          comprehensive:comprehensive*multiplier,
+          rural:rural*multiplier,
+          propertyTax:propertyTax*multiplier,
+          cityTax:cityTax*multiplier,
+          educationTax:educationTax*multiplier,
+          holdingTax:holdingTax*multiplier
+        };
+      }
+      return result;
+    }
+
+    const bandsElement=document.querySelector('#bands');
+    const scenarioSelect=document.querySelector('#scenario');
+    const propertyPanel=document.querySelector('.property-panel');
+    const analysisPanel=document.querySelector('.analysis-panel');
+    const emptyPanel=document.querySelector('#empty');
+    let activeBand='12';
+
+    for(const band of bands){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='band-button';
+      button.textContent=band.label;
+      button.dataset.band=band.id;
+      button.setAttribute('aria-pressed',String(band.id===activeBand));
+      button.addEventListener('click',()=>{
+        activeBand=band.id;
+        render();
+      });
+      bandsElement.append(button);
+    }
+
+    function formatMoney(value){return `${numberFormat.format(value)}만원`;}
+
+    function render(){
+      for(const button of bandsElement.querySelectorAll('button')){
+        button.setAttribute('aria-pressed',String(button.dataset.band===activeBand));
+      }
+      const apartment=apartments.find(item=>item.band===activeBand);
+      if(!apartment){
+        propertyPanel.hidden=true;
+        analysisPanel.hidden=true;
+        emptyPanel.hidden=false;
+        return;
+      }
+
+      propertyPanel.hidden=false;
+      analysisPanel.hidden=false;
+      emptyPanel.hidden=true;
+      const band=bands.find(item=>item.id===activeBand);
+      const scenario=scenarioSelect.value;
+      const joint=scenario.endsWith('_공동명의');
+      const tax=calculateTax(apartment.price,scenario);
+      const start=tax[2026];
+      const end=tax[2028];
+      const change=end.holdingTax-start.holdingTax;
+      const changeRate=start.holdingTax?change/start.holdingTax*100:0;
+
+      document.querySelector('#band-label').textContent=band.label;
+      document.querySelector('#property-title').textContent=apartment.complex;
+      document.querySelector('#property-address').textContent=`${apartment.building}동 ${apartment.unit}호 · ${apartment.floor}층`;
+      document.querySelector('#official-price').textContent=`${numberFormat.format(apartment.price)}만원`;
+      document.querySelector('#info-location').textContent=apartment.location;
+      document.querySelector('#info-complex').textContent=apartment.complex;
+      document.querySelector('#info-building').textContent=`${apartment.building}동`;
+      document.querySelector('#info-unit').textContent=`${apartment.unit}호`;
+      document.querySelector('#info-area').textContent=`${decimalFormat.format(apartment.area)}㎡`;
+      document.querySelector('#info-year').textContent=`${apartment.year}년`;
+      document.querySelector('#analysis-basis').textContent=joint?'부부 50% 공동명의 · 가구 합산 기준':'단독명의 · 가구 기준';
+      document.querySelector('#scenario-note').textContent=joint?'부부가 50%씩 보유하는 것으로 계산합니다.':scenario.includes('비거주')?'단독명의 1주택 비거주 기준입니다.':'단독명의 1주택 실거주 기준입니다.';
+      document.querySelector('#change-summary').textContent=`2026년에서 2028년까지 종합부동산세는 ${formatMoney(start.comprehensive)}에서 ${formatMoney(end.comprehensive)}으로 변하고, 보유세는 ${formatMoney(start.holdingTax)}에서 ${formatMoney(end.holdingTax)}으로 변합니다.`;
+      document.querySelector('#holding-2026').textContent=formatMoney(start.holdingTax);
+      document.querySelector('#holding-2028').textContent=formatMoney(end.holdingTax);
+
+      const changeKpi=document.querySelector('#change-kpi');
+      changeKpi.className=`kpi ${change>0?'up':change<0?'down':''}`;
+      document.querySelector('#holding-change').textContent=`${change>0?'+':''}${numberFormat.format(change)}만원 (${changeRate>0?'+':''}${changeRate.toFixed(1)}%)`;
+
+      const maxHolding=Math.max(...years.map(year=>tax[year].holdingTax),1);
+      const chart=document.querySelector('#tax-chart');
+      chart.replaceChildren();
+      for(const year of years){
+        const group=document.createElement('div');
+        group.className='bar-group';
+        const value=document.createElement('div');
+        value.className='bar-value';
+        value.textContent=numberFormat.format(tax[year].holdingTax);
+        const barElement=document.createElement('div');
+        barElement.className='bar';
+        barElement.style.setProperty('--bar-height',`${Math.max(7,tax[year].holdingTax/maxHolding*130)}px`);
+        const yearLabel=document.createElement('div');
+        yearLabel.className='bar-year';
+        yearLabel.textContent=`${year}년`;
+        group.append(value,barElement,yearLabel);
+        chart.append(group);
+      }
+
+      const rows=[
+        ['종합부동산세(A)','comprehensive'],
+        ['농어촌특별세(B)','rural'],
+        ['재산세(C)','propertyTax'],
+        ['도시지역분(D)','cityTax'],
+        ['지방교육세(E)','educationTax'],
+        ['보유세 합계(A:E)','holdingTax']
+      ];
+      const tbody=document.querySelector('#tax-table');
+      tbody.replaceChildren();
+      for(const [label,key] of rows){
+        const tr=document.createElement('tr');
+        if(key==='holdingTax')tr.className='total';
+        const th=document.createElement('th');
+        th.scope='row';
+        th.textContent=label;
+        tr.append(th);
+        for(const year of years){
+          const td=document.createElement('td');
+          td.textContent=numberFormat.format(tax[year][key]);
+          tr.append(td);
+        }
+        tbody.append(tr);
+      }
+    }
+
+    scenarioSelect.addEventListener('change',render);
+    render();
+  </script>
+</body>
+</html>
