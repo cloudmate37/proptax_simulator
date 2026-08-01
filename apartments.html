@@ -86,9 +86,6 @@
     tbody td { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
     tbody tr.total th,tbody tr.total td { background:var(--accent-soft); font-weight:850; }
-    .empty { grid-column:1/-1; padding:52px 24px; text-align:center; }
-    .empty h2 { margin:0 0 8px; }
-    .empty p { margin:0; color:var(--muted); }
     .method { margin-top:16px; color:var(--muted); font-size:12px; }
     [hidden] { display:none!important; }
     @media (max-width:850px) {
@@ -173,10 +170,6 @@
         <p class="method">※ 공시가격이 2026~2028년 동일하다고 가정한 모의 계산입니다. 세액은 만원 단위 반올림 값이며 실제 과세액과 다를 수 있습니다.</p>
       </article>
 
-      <article id="empty" class="panel empty" hidden>
-        <h2>이 구간의 대표 아파트 데이터가 없습니다.</h2>
-        <p>CSV에 100억원 초과 행을 추가하면 이 페이지에 자동으로 표시할 수 있습니다.</p>
-      </article>
     </section>
   </main>
 
@@ -184,7 +177,6 @@
     'use strict';
 
     const apartments=[
-      {band:'12',location:'서울특별시 도봉구 도봉동',complex:'한신',building:'111',unit:'704',floor:'7',area:84.94,price:35800,year:2026},
       {band:'15',location:'서울특별시 강동구 상일동',complex:'고덕아르테온',building:'317',unit:'805',floor:'8',area:84.97,price:144100,year:2026},
       {band:'20',location:'서울특별시 송파구 신천동',complex:'파크리오',building:'113',unit:'1403',floor:'14',area:84.9,price:196100,year:2026},
       {band:'25',location:'서울특별시 송파구 잠실동',complex:'리센츠',building:'217',unit:'1502',floor:'15',area:84.99,price:238800,year:2026},
@@ -194,15 +186,13 @@
       {band:'100',location:'서울특별시 강남구 압구정동',complex:'신현대11차',building:'108',unit:'1206',floor:'12',area:183.41,price:815700,year:2026}
     ];
     const bands=[
-      {id:'12',label:'12억원 이하'},
       {id:'15',label:'12~15억원 이하'},
       {id:'20',label:'15~20억원 이하'},
       {id:'25',label:'20~25억원 이하'},
       {id:'30',label:'25~30억원 이하'},
       {id:'40',label:'30~40억원 이하'},
       {id:'50',label:'40~50억원 이하'},
-      {id:'100',label:'50~100억원 이하'},
-      {id:'over100',label:'100억원 초과'}
+      {id:'100',label:'50억원 초과'}
     ];
     const years=[2026,2027,2028];
     const rates={
@@ -284,8 +274,7 @@
     const scenarioSelect=document.querySelector('#scenario');
     const propertyPanel=document.querySelector('.property-panel');
     const analysisPanel=document.querySelector('.analysis-panel');
-    const emptyPanel=document.querySelector('#empty');
-    let activeBand='12';
+    let activeBand='15';
 
     for(const band of bands){
       const button=document.createElement('button');
@@ -308,16 +297,8 @@
         button.setAttribute('aria-pressed',String(button.dataset.band===activeBand));
       }
       const apartment=apartments.find(item=>item.band===activeBand);
-      if(!apartment){
-        propertyPanel.hidden=true;
-        analysisPanel.hidden=true;
-        emptyPanel.hidden=false;
-        return;
-      }
-
       propertyPanel.hidden=false;
       analysisPanel.hidden=false;
-      emptyPanel.hidden=true;
       const band=bands.find(item=>item.id===activeBand);
       const scenario=scenarioSelect.value;
       const joint=scenario.endsWith('_공동명의');
