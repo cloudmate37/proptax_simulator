@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>보유세 계산기</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink:#17202a; --muted:#697386; --line:#dfe4ea; --surface:#fff;
+      --wash:#f4f7fa; --accent:#1261a0; --accent-dark:#0b4675;
+      --result:#e9f4fb; --danger:#b42318;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--wash); color:var(--ink); font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; line-height:1.5; }
+    .page { width:min(1100px,calc(100% - 32px)); margin:56px auto; }
+    header { margin-bottom:24px; }
+    h1 { margin:0 0 8px; font-size:clamp(28px,4vw,42px); letter-spacing:-.045em; }
+    .subtitle,.unit-note,.assumption { margin:0; color:var(--muted); }
+    .card { padding:28px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:0 12px 30px rgb(24 39 75 / 7%); }
+    form { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(220px,1fr) auto; gap:16px; align-items:end; }
+    label { display:block; margin-bottom:7px; font-size:14px; font-weight:700; }
+    input,select,button { width:100%; min-height:48px; border-radius:10px; font:inherit; }
+    input,select { border:1px solid #b9c2cc; background:#fff; color:var(--ink); padding:0 14px; }
+    input:focus,select:focus { border-color:var(--accent); outline:3px solid rgb(18 97 160 / 14%); }
+    button { width:auto; border:0; background:var(--accent); color:#fff; padding:0 24px; font-weight:750; cursor:pointer; }
+    button:hover { background:var(--accent-dark); }
+    .unit-note { margin-top:10px; font-size:13px; }
+    .assumption { margin-top:4px; font-size:13px; }
+    .error { min-height:24px; margin:12px 0 0; color:var(--danger); font-weight:650; }
+    .result-head { display:flex; justify-content:space-between; gap:20px; align-items:end; margin:36px 0 12px; }
+    .result-head h2 { margin:0; font-size:22px; }
+    .summary { color:var(--muted); text-align:right; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:0 8px 22px rgb(24 39 75 / 5%); }
+    table { width:100%; border-collapse:collapse; min-width:680px; }
+    th,td { padding:13px 18px; border-bottom:1px solid var(--line); }
+    thead th { background:#edf2f6; text-align:right; font-size:14px; }
+    thead th:first-child,tbody th { text-align:left; }
+    tbody th { width:240px; background:#fafbfc; font-size:14px; }
+    tbody td { text-align:right; font-variant-numeric:tabular-nums; }
+    tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
+    tbody tr.total th,tbody tr.total td { background:var(--result); font-weight:800; }
+    [hidden] { display:none!important; }
+    @media (max-width:760px) {
+      .page { margin:28px auto; } .card { padding:20px; }
+      form { grid-template-columns:1fr; } button { width:100%; }
+      .result-head { display:block; } .summary { margin-top:6px; text-align:left; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>보유세 계산기</h1>
+      <p class="subtitle">공시가격과 과세 대상을 입력하면 2026~2028년 예상 보유세를 계산합니다.</p>
+    </header>
+    <section class="card" aria-labelledby="calculator-title">
+      <h2 id="calculator-title" hidden>계산 조건</h2>
+      <form id="tax-form" novalidate>
+        <div>
+          <label for="price">공시가격 (만원)</label>
+          <input id="price" name="price" type="number" min="1" step="1" value="320000" inputmode="numeric" required>
+        </div>
+        <div>
+          <label for="target">대상</label>
+          <select id="target" name="target" required></select>
+        </div>
+        <button type="submit">계산하기</button>
+      </form>
+      <p class="unit-note">예: 32억원은 320,000만원으로 입력하세요. 모든 금액은 만원 단위입니다.</p>
+      <p class="assumption">다주택자는 주택별 공시가격이 동일하다고 가정합니다.</p>
+      <p id="error" class="error" role="alert" aria-live="polite"></p>
+    </section>
+    <section id="result" hidden aria-labelledby="result-title">
+      <div class="result-head">
+        <h2 id="result-title">계산 결과</h2>
+        <div id="summary" class="summary"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">구분 (만원)</th><th scope="col">2026</th><th scope="col">2027</th><th scope="col">2028</th></tr></thead>
+          <tbody id="result-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    'use strict';
+    const years=[2026,2027,2028];
+    const commonRates={
+      2026:{1:.005,2:.007,3:.010,4:.013,5:.015,6:.020,7:.027},
+      2027:{1:.005,2:.007,3:.013,4:.015,5:.020,6:.027,7:.035},
+      2028:{1:.005,2:.007,3:.013,4:.020,5:.030,6:.040,7:.050}
+    };
+    const commonDeductions={
+      2026:{1:0,2:150,3:360,4:960,5:2650,6:6400,7:15200},
+      2027:{1:0,2:150,3:360,4:1140,5:3090,6:8090,7:19970},
+      2028:{1:0,2:150,3:360,4:1140,5:3740,6:11240,7:28840}
+    };
+    const 산식={
+      '1주택자_실거주':{기본공제:{2026:120000,2027:140000,2028:140000},공정시장가액비율:{2026:.6,2027:.7,2028:.7},세율:commonRates,누진공제:commonDeductions},
+      '1주택자_비거주':{기본공제:{2026:120000,2027:90000,2028:90000},공정시장가액비율:{2026:.6,2027:.7,2028:.7},세율:commonRates,누진공제:commonDeductions},
+      '2주택자':{기본공제:{2026:90000,2027:90000,2028:90000},공정시장가액비율:{2026:.6,2027:.8,2028:.8},세율:commonRates,누진공제:commonDeductions},
+      '3주택이상':{
+        기본공제:{2026:90000,2027:90000,2028:90000},공정시장가액비율:{2026:.6,2027:.8,2028:.8},
+        세율:{2026:{1:.005,2:.007,3:.010,4:.020,5:.030,6:.040,7:.050},2027:commonRates[2027],2028:commonRates[2028]},
+        누진공제:{2026:{1:0,2:150,3:360,4:960,5:3560,6:11060,7:28660},2027:commonDeductions[2027],2028:commonDeductions[2028]}
+      }
+    };
+    const 누진구간표시={1:'3억원 이하',2:'3~6억원 이하',3:'6~12억원 이하',4:'12~25억원 이하',5:'25~50억원 이하',6:'50~94억원 이하',7:'94억원 초과'};
+    const 차감액={1:0,2:30000,3:60000,4:120000,5:250000,6:500000,7:940000};
+    const rowOrder=['공시가격','기본공제','공제후','공정시장가액비율','과세표준','누진구간','세율','기본세액','재산세차감','종합부동산세(A)','농어촌특별세(B)','합계(A+B)','재산세(C)','도시지역분(D)','지방교육세(E)','보유세(A:E)'];
+    const numberFormat=new Intl.NumberFormat('ko-KR',{maximumFractionDigits:0});
+    const percentFormat=new Intl.NumberFormat('ko-KR',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2});
+
+    function 누진구간분류(과세표준){
+      if(과세표준<=30000)return 1;
+      if(과세표준<=60000)return 2;
+      if(과세표준<=120000)return 3;
+      if(과세표준<=250000)return 4;
+      if(과세표준<=500000)return 5;
+      if(과세표준<=940000)return 6;
+      return 7;
+    }
+
+    function 재산세계산(공시가격){
+      const 과세표준=공시가격*.6;
+      if(과세표준<=6000)return 과세표준*.001;
+      if(과세표준<=15000)return 6+(과세표준-6000)*.0015;
+      if(과세표준<=30000)return 19.5+(과세표준-15000)*.0025;
+      return 57+(과세표준-30000)*.004;
+    }
+
+    function 보유세계산(공시가격,대상){
+      if(!Object.hasOwn(산식,대상))throw new Error('목록에 있는 대상만 선택할 수 있습니다.');
+      const 결과={};
+      const 원시값={};
+      const 규칙=산식[대상];
+      const 다주택=대상[0]!=='1';
+      const 주택수=다주택?Number(대상[0]):1;
+
+      for(const 연도 of years){
+        const 값={};
+        const 기본공제=!다주택||연도===2026?규칙.기본공제[연도]:40000+50000/주택수;
+        const 공제후=공시가격-기본공제;
+        값['공시가격']=numberFormat.format(공시가격);
+        값['기본공제']=numberFormat.format(기본공제);
+
+        let 종합부동산세=null;
+        let 합계=0;
+        if(공제후>0){
+          const 공정시장가액비율=규칙.공정시장가액비율[연도];
+          const 과세표준=공제후*공정시장가액비율;
+          const 누진구간=누진구간분류(과세표준);
+          const 세율=규칙.세율[연도][누진구간];
+          const 누진공제액=규칙.누진공제[연도][누진구간];
+          const 기본세액=누진공제액+(과세표준-차감액[누진구간])*세율;
+          const 재산세차감=!다주택
+            ?과세표준*.45*.004
+            :(재산세계산(공시가격/주택수)*주택수)*(과세표준*.6*.004)/재산세계산(공시가격);
+          종합부동산세=기본세액-재산세차감;
+          const 농어촌특별세=종합부동산세*.2;
+          합계=종합부동산세+농어촌특별세;
+
+          Object.assign(값,{
+            '공제후':numberFormat.format(공제후),
+            '공정시장가액비율':`${Math.round(공정시장가액비율*100)}%`,
+            '과세표준':numberFormat.format(과세표준),
+            '누진구간':누진구간표시[누진구간],
+            '세율':percentFormat.format(세율),
+            '기본세액':numberFormat.format(기본세액),
+            '재산세차감':numberFormat.format(재산세차감),
+            '종합부동산세(A)':numberFormat.format(종합부동산세),
+            '농어촌특별세(B)':numberFormat.format(농어촌특별세),
+            '합계(A+B)':numberFormat.format(합계)
+          });
+        }
+
+        const 재산세=!다주택?57+(공시가격*.45-30000)*.004:재산세계산(공시가격/주택수)*주택수;
+        const 도시지역분=공시가격*(다주택?.6:.45)*.0014;
+        const 지방교육세=재산세*.2;
+        let 보유세=합계+재산세+도시지역분+지방교육세;
+
+        if(연도>=2027&&공제후>0&&원시값[연도-1].종합부동산세!==null){
+          const 세부담상한=(원시값[연도-1].종합부동산세+원시값[연도-1].재산세)*2;
+          if(보유세>세부담상한*2)보유세=세부담상한;
+        }
+
+        값['재산세(C)']=numberFormat.format(재산세);
+        값['도시지역분(D)']=numberFormat.format(도시지역분);
+        값['지방교육세(E)']=numberFormat.format(지방교육세);
+        값['보유세(A:E)']=numberFormat.format(보유세);
+        for(const 항목 of rowOrder)if(!Object.hasOwn(값,항목))값[항목]='-';
+
+        원시값[연도]={종합부동산세,재산세,보유세};
+        결과[연도]=값;
+      }
+      return 결과;
+    }
+
+    const form=document.querySelector('#tax-form');
+    const priceInput=document.querySelector('#price');
+    const targetSelect=document.querySelector('#target');
+    const resultSection=document.querySelector('#result');
+    const resultBody=document.querySelector('#result-body');
+    const summary=document.querySelector('#summary');
+    const error=document.querySelector('#error');
+    for(const 대상 of Object.keys(산식)){
+      const option=document.createElement('option'); option.value=대상; option.textContent=대상; targetSelect.append(option);
+    }
+    function renderResult(결과,공시가격,대상){
+      resultBody.replaceChildren();
+      for(const 항목 of rowOrder){
+        const tr=document.createElement('tr'); if(항목==='보유세(A:E)')tr.className='total';
+        const th=document.createElement('th'); th.scope='row'; th.textContent=항목; tr.append(th);
+        for(const 연도 of years){const td=document.createElement('td'); td.textContent=결과[연도][항목]; tr.append(td);}
+        resultBody.append(tr);
+      }
+      summary.textContent=`${대상} · 공시가격 ${numberFormat.format(공시가격)}만원`;
+      resultSection.hidden=false;
+    }
+    form.addEventListener('submit',event=>{
+      event.preventDefault(); error.textContent='';
+      const 공시가격=Number(priceInput.value); const 대상=targetSelect.value;
+      if(!Number.isFinite(공시가격)||공시가격<=0){
+        error.textContent='공시가격을 1만원 이상의 숫자로 입력해 주세요.'; resultSection.hidden=true; priceInput.focus(); return;
+      }
+      try{renderResult(보유세계산(공시가격,대상),공시가격,대상);}
+      catch(exception){error.textContent=exception.message; resultSection.hidden=true;}
+    });
+    form.requestSubmit();
+  </script>
+</body>
+</html>
