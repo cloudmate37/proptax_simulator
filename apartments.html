@@ -434,8 +434,17 @@
       }
     }
 
+    function syncResidenceLimit(){
+      const holding=Math.max(0,Number(holdingInput.value)||0);
+      residenceInput.max=String(holding);
+      if((Number(residenceInput.value)||0)>holding)residenceInput.value=String(holding);
+    }
+
     scenarioSelect.addEventListener('change',render);
-    for(const input of [ageInput,holdingInput,residenceInput])input.addEventListener('input',render);
+    ageInput.addEventListener('input',render);
+    holdingInput.addEventListener('input',()=>{syncResidenceLimit();render();});
+    residenceInput.addEventListener('input',()=>{syncResidenceLimit();render();});
+    syncResidenceLimit();
     render();
   </script>
 </body>
