@@ -25,6 +25,8 @@
     .map-link { border-color:var(--accent-dark); background:var(--accent-dark); }
     .card { padding:28px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:0 12px 30px rgb(24 39 75 / 7%); }
     form { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(220px,1fr) auto; gap:16px; align-items:end; }
+    .one-house-fields { grid-column:1 / 3; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    .one-house-fields:not([hidden]) + button { grid-column:3; grid-row:2; }
     label { display:block; margin-bottom:7px; font-size:14px; font-weight:700; }
     input,select,button { width:100%; min-height:48px; border-radius:10px; font:inherit; }
     input,select { height:48px; border:1px solid #b9c2cc; background:#fff; color:var(--ink); padding:0 14px; }
@@ -53,7 +55,7 @@
     [hidden] { display:none!important; }
     @media (max-width:760px) {
       .page { margin:28px auto; } .card { padding:20px; }
-      form { grid-template-columns:1fr; } button { width:100%; }
+      form { grid-template-columns:1fr; } .one-house-fields { grid-column:1; grid-template-columns:1fr; } .one-house-fields:not([hidden]) + button { grid-column:1; grid-row:auto; } button { width:100%; }
       .result-head { display:block; } .summary { margin-top:6px; text-align:left; }
       .title-row { display:block; } .page-links { display:grid; justify-content:stretch; margin-top:14px; } .analysis-link { display:block; margin-top:0; text-align:center; }
     }
@@ -84,6 +86,20 @@
         <div>
           <label for="target">대상</label>
           <select id="target" name="target" required></select>
+        </div>
+        <div id="one-house-fields" class="one-house-fields">
+          <div>
+            <label for="age">연령 (세)</label>
+            <input id="age" name="age" type="number" min="0" step="1" value="0" inputmode="numeric" required>
+          </div>
+          <div>
+            <label for="holding-period">보유기간 (년)</label>
+            <input id="holding-period" name="holding-period" type="number" min="0" step="1" value="0" inputmode="numeric" required>
+          </div>
+          <div>
+            <label for="residence-period">거주기간 (년)</label>
+            <input id="residence-period" name="residence-period" type="number" min="0" step="1" value="0" inputmode="numeric" required>
+          </div>
         </div>
         <button type="submit">계산하기</button>
       </form>
@@ -165,11 +181,11 @@
       if(과세표준<=6000)return 과세표준*.0005;
       if(과세표준<=15000)return 3+(과세표준-6000)*.001;
       if(과세표준<=30000)return 12+(과세표준-15000)*.002;
-      if(과세표준<=90000)return 42+(과세표준-30000)*.0035;
+      if(공시가격<=90000)return 42+(과세표준-30000)*.0035;
       return 57+(과세표준-30000)*.004;
     }
 
-    function 보유세계산(공시가격,대상){
+    function 보유세계산(공시가격,대상,연령=0,보유=0,거주=0){
       if(!Object.hasOwn(산식,대상))throw new Error('목록에 있는 대상만 선택할 수 있습니다.');
       const 결과={};
       const 원시값={};
@@ -199,6 +215,23 @@
             ?과세표준*.45*.004
             :(재산세계산(공시가격/주택수,대상)*주택수)*(과세표준*.6*.004)/재산세계산(공시가격,대상);
           종합부동산세=기본세액-재산세차감;
+          let 공제율=연령>=70?40:연령>=65?30:연령>=60?20:0;
+          let 보유공제율=보유>=15?50:보유>=10?40:보유>=5?20:0;
+          let 거주공제율=거주>=15?50:거주>=10?40:거주>=5?20:0;
+          if(연도===2026){
+            거주공제율=0;
+          }else if(연도===2027){
+            보유공제율/=2;
+            if(보유공제율>=거주공제율)거주공제율=0;
+            else 보유공제율=0;
+          }else{
+            보유공제율=0;
+          }
+          공제율=Math.min(80,공제율+보유공제율+거주공제율);
+          let 세액공제=종합부동산세*공제율/100;
+          if(연도===2027)세액공제=Math.min(세액공제,800);
+          else if(연도===2028)세액공제=Math.min(세액공제,600);
+          종합부동산세-=세액공제;
           const 농어촌특별세=종합부동산세*.2;
           합계=종합부동산세+농어촌특별세;
 
@@ -242,6 +275,10 @@
     const form=document.querySelector('#tax-form');
     const priceInput=document.querySelector('#price');
     const targetSelect=document.querySelector('#target');
+    const oneHouseFields=document.querySelector('#one-house-fields');
+    const ageInput=document.querySelector('#age');
+    const holdingInput=document.querySelector('#holding-period');
+    const residenceInput=document.querySelector('#residence-period');
     const resultSection=document.querySelector('#result');
     const resultBody=document.querySelector('#result-body');
     const summary=document.querySelector('#summary');
@@ -250,7 +287,13 @@
     for(const 대상 of Object.keys(산식)){
       const option=document.createElement('option'); option.value=대상; option.textContent=대상; targetSelect.append(option);
     }
-    function renderResult(결과,공시가격,대상){
+    function updateOneHouseFields(){
+      const 한주택=targetSelect.value.startsWith('1');
+      oneHouseFields.hidden=!한주택;
+      for(const input of [ageInput,holdingInput,residenceInput])input.disabled=!한주택;
+    }
+    targetSelect.addEventListener('change',updateOneHouseFields);
+    function renderResult(결과,공시가격,대상,연령,보유,거주){
       resultBody.replaceChildren();
       const 공동명의=대상.endsWith('_공동명의');
       const 표시항목=공동명의?[...rowOrder,'보유세(부부합산)']:rowOrder;
@@ -261,7 +304,8 @@
         for(const 연도 of years){const td=document.createElement('td'); td.textContent=결과[연도][항목]; tr.append(td);}
         resultBody.append(tr);
       }
-      summary.textContent=`${대상} · 공시가격 ${numberFormat.format(공시가격)}만원`;
+      const 공제조건=대상.startsWith('1')?` · 연령 ${연령}세 · 보유 ${보유}년 · 거주 ${거주}년`:'';
+      summary.textContent=`${대상} · 공시가격 ${numberFormat.format(공시가격)}만원${공제조건}`;
       const 금액값=값=>Number(String(값).replaceAll(',',''))||0;
       const 시작연도=years[0];
       const 종료연도=years[years.length-1];
@@ -280,9 +324,17 @@
       if(!Number.isFinite(공시가격)||공시가격<=0){
         error.textContent='공시가격을 1만원 이상의 숫자로 입력해 주세요.'; resultSection.hidden=true; priceInput.focus(); return;
       }
-      try{renderResult(보유세계산(공시가격,대상),공시가격,대상);}
+      const 한주택=대상.startsWith('1');
+      const 연령=한주택?Number(ageInput.value):0;
+      const 보유=한주택?Number(holdingInput.value):0;
+      const 거주=한주택?Number(residenceInput.value):0;
+      if(한주택&&[연령,보유,거주].some(value=>!Number.isFinite(value)||value<0)){
+        error.textContent='연령, 보유기간, 거주기간을 0 이상의 숫자로 입력해 주세요.'; resultSection.hidden=true; return;
+      }
+      try{renderResult(보유세계산(공시가격,대상,연령,보유,거주),공시가격,대상,연령,보유,거주);}
       catch(exception){error.textContent=exception.message; resultSection.hidden=true;}
     });
+    updateOneHouseFields();
     form.requestSubmit();
   </script>
 </body>
