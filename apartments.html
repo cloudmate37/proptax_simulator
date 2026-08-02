@@ -28,18 +28,20 @@
       font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       line-height:1.5;
     }
-    button,select { font:inherit; }
+    button,select,input { font:inherit; }
     button { cursor:pointer; }
     .page { width:min(1160px,calc(100% - 32px)); margin:42px auto 72px; }
     .topbar { display:flex; justify-content:space-between; gap:20px; align-items:center; margin-bottom:28px; }
     .back-link { color:var(--accent); font-size:14px; font-weight:750; text-decoration:none; }
-    .source-note { color:var(--muted); font-size:13px; }
     .hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,.45fr); gap:26px; align-items:end; margin-bottom:24px; }
     h1 { margin:0 0 10px; font-size:clamp(30px,4.8vw,52px); line-height:1.13; letter-spacing:-.055em; }
     .hero p { margin:0; color:var(--muted); max-width:720px; }
     .scenario-wrap { padding:18px; border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:var(--shadow); }
     .scenario-wrap label { display:block; margin-bottom:7px; font-size:13px; font-weight:800; }
-    .scenario-wrap select { width:100%; min-height:44px; padding:0 12px; border:1px solid #b8c1cb; border-radius:10px; background:#fff; color:var(--ink); }
+    .scenario-wrap select,.scenario-wrap input { width:100%; min-height:44px; padding:0 12px; border:1px solid #b8c1cb; border-radius:10px; background:#fff; color:var(--ink); }
+    .scenario-wrap select:focus,.scenario-wrap input:focus { border-color:var(--accent); outline:3px solid rgb(18 97 160 / 14%); }
+    .deduction-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:13px; }
+    .deduction-fields label { min-height:36px; margin-bottom:5px; font-size:12px; }
     .scenario-note { margin:8px 0 0!important; font-size:12px; }
     .bands { display:flex; gap:8px; padding:8px 0 16px; overflow-x:auto; scrollbar-width:thin; }
     .band-button { flex:0 0 auto; min-height:40px; padding:0 15px; border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--muted); font-size:13px; font-weight:750; }
@@ -98,7 +100,6 @@
     @media (max-width:560px) {
       .page { width:min(100% - 22px,1160px); margin-top:22px; }
       .topbar { align-items:start; }
-      .source-note { text-align:right; }
       .property-panel,.analysis-panel { padding:18px; }
       .kpis { grid-template-columns:1fr; }
       .property-title { font-size:26px; }
@@ -109,7 +110,6 @@
   <main class="page">
     <div class="topbar">
       <a class="back-link" href="index.html">← 보유세 계산기</a>
-      <span class="source-note">자료: 공시가격대별_대표아파트.csv · 2026년 기준</span>
     </div>
 
     <section class="hero">
@@ -124,6 +124,20 @@
           <option value="1주택자_비거주">1주택자 · 비거주</option>
           <option value="1주택자_실거주_공동명의">1주택자 · 실거주 · 공동명의</option>
         </select>
+        <div class="deduction-fields">
+          <div>
+            <label for="age">연령 (세)</label>
+            <input id="age" type="number" min="0" step="1" value="0" inputmode="numeric">
+          </div>
+          <div>
+            <label for="holding-period">보유기간 (년)</label>
+            <input id="holding-period" type="number" min="0" step="1" value="0" inputmode="numeric">
+          </div>
+          <div>
+            <label for="residence-period">거주기간 (년)</label>
+            <input id="residence-period" type="number" min="0" step="1" value="0" inputmode="numeric">
+          </div>
+        </div>
         <p id="scenario-note" class="scenario-note">단독명의 1주택 실거주 기준입니다.</p>
       </div>
     </section>
@@ -226,7 +240,36 @@
       return 7;
     }
 
-    function calculateTax(totalPrice,scenario){
+    function calculatePropertyTax(price){
+      const taxBase=price*(price<=30000?.43:price<=60000?.44:.45);
+      if(taxBase<=6000)return taxBase*.0005;
+      if(taxBase<=15000)return 3+(taxBase-6000)*.001;
+      if(taxBase<=30000)return 12+(taxBase-15000)*.002;
+      if(price<=90000)return 42+(taxBase-30000)*.0035;
+      return 57+(taxBase-30000)*.004;
+    }
+
+    function calculateDeduction(year,comprehensive,age,holding,residence){
+      let rate=age>=70?40:age>=65?30:age>=60?20:0;
+      let holdingRate=holding>=15?50:holding>=10?40:holding>=5?20:0;
+      let residenceRate=residence>=15?50:residence>=10?40:residence>=5?20:0;
+      if(year===2026){
+        residenceRate=0;
+      }else if(year===2027){
+        holdingRate/=2;
+        if(holdingRate>=residenceRate)residenceRate=0;
+        else holdingRate=0;
+      }else{
+        holdingRate=0;
+      }
+      rate=Math.min(80,rate+holdingRate+residenceRate);
+      let credit=comprehensive*rate/100;
+      if(year===2027)credit=Math.min(credit,800);
+      else if(year===2028)credit=Math.min(credit,600);
+      return {rate,credit};
+    }
+
+    function calculateTax(totalPrice,scenario,age=0,holding=0,residence=0){
       const joint=scenario.endsWith('_공동명의');
       const multiplier=joint?2:1;
       const price=joint?totalPrice/2:totalPrice;
@@ -239,6 +282,8 @@
         const afterDeduction=price-base;
         let comprehensive=0;
         let rural=0;
+        let taxCredit=0;
+        let deductionRate=0;
 
         if(afterDeduction>0){
           const taxBase=afterDeduction*rule.ratio[year];
@@ -246,10 +291,14 @@
           const basicTax=deductions[year][bracket]+(taxBase-bracketOffsets[bracket])*rates[year][bracket];
           const propertyDeduction=taxBase*.45*.004;
           comprehensive=basicTax-propertyDeduction;
+          const deduction=calculateDeduction(year,comprehensive,age,holding,residence);
+          taxCredit=deduction.credit;
+          deductionRate=deduction.rate;
+          comprehensive-=taxCredit;
           rural=comprehensive*.2;
         }
 
-        const propertyTax=57+(price*.45-30000)*.004;
+        const propertyTax=calculatePropertyTax(price);
         const cityTax=price*.45*.0014;
         const educationTax=propertyTax*.2;
         let holdingTax=comprehensive+rural+propertyTax+cityTax+educationTax;
@@ -262,6 +311,8 @@
         raw[year]={comprehensive:afterDeduction>0?comprehensive:null,propertyTax,holdingTax};
         result[year]={
           comprehensive:comprehensive*multiplier,
+          taxCredit:taxCredit*multiplier,
+          deductionRate,
           rural:rural*multiplier,
           propertyTax:propertyTax*multiplier,
           cityTax:cityTax*multiplier,
@@ -274,6 +325,9 @@
 
     const bandsElement=document.querySelector('#bands');
     const scenarioSelect=document.querySelector('#scenario');
+    const ageInput=document.querySelector('#age');
+    const holdingInput=document.querySelector('#holding-period');
+    const residenceInput=document.querySelector('#residence-period');
     const propertyPanel=document.querySelector('.property-panel');
     const analysisPanel=document.querySelector('.analysis-panel');
     let activeBand='15';
@@ -304,7 +358,10 @@
       const band=bands.find(item=>item.id===activeBand);
       const scenario=scenarioSelect.value;
       const joint=scenario.endsWith('_공동명의');
-      const tax=calculateTax(apartment.price,scenario);
+      const age=Math.max(0,Number(ageInput.value)||0);
+      const holding=Math.max(0,Number(holdingInput.value)||0);
+      const residence=Math.max(0,Number(residenceInput.value)||0);
+      const tax=calculateTax(apartment.price,scenario,age,holding,residence);
       const start=tax[2026];
       const end=tax[2028];
       const change=end.holdingTax-start.holdingTax;
@@ -320,7 +377,8 @@
       document.querySelector('#info-unit').textContent=`${apartment.unit}호`;
       document.querySelector('#info-area').textContent=`${decimalFormat.format(apartment.area)}㎡`;
       document.querySelector('#info-year').textContent=`${apartment.year}년`;
-      document.querySelector('#analysis-basis').textContent=joint?'부부 50% 공동명의 · 가구 합산 기준':'단독명의 · 가구 기준';
+      const ownershipBasis=joint?'부부 50% 공동명의 · 가구 합산 기준':'단독명의 · 가구 기준';
+      document.querySelector('#analysis-basis').textContent=`${ownershipBasis} · 연령 ${age}세 · 보유 ${holding}년 · 거주 ${residence}년`;
       document.querySelector('#scenario-note').textContent=joint?'부부가 50%씩 보유하는 것으로 계산합니다.':scenario.includes('비거주')?'단독명의 1주택 비거주 기준입니다.':'단독명의 1주택 실거주 기준입니다.';
       document.querySelector('#change-summary').textContent=`2026년에서 2028년까지 종합부동산세는 ${formatMoney(start.comprehensive)}에서 ${formatMoney(end.comprehensive)}으로 변하고, 보유세는 ${formatMoney(start.holdingTax)}에서 ${formatMoney(end.holdingTax)}으로 변합니다.`;
       document.querySelector('#holding-2026').textContent=formatMoney(start.holdingTax);
@@ -350,6 +408,7 @@
       }
 
       const rows=[
+        ['종부세 세액공제','taxCredit'],
         ['종합부동산세(A)','comprehensive'],
         ['농어촌특별세(B)','rural'],
         ['재산세(C)','propertyTax'],
@@ -376,6 +435,7 @@
     }
 
     scenarioSelect.addEventListener('change',render);
+    for(const input of [ageInput,holdingInput,residenceInput])input.addEventListener('input',render);
     render();
   </script>
 </body>
