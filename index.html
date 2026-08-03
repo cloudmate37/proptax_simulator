@@ -155,6 +155,7 @@
     const 누진구간표시={1:'3억원 이하',2:'3~6억원 이하',3:'6~12억원 이하',4:'12~25억원 이하',5:'25~50억원 이하',6:'50~94억원 이하',7:'94억원 초과'};
     const 차감액={1:0,2:30000,3:60000,4:120000,5:250000,6:500000,7:940000};
     const rowOrder=['공시가격','기본공제','공제후','공정시장가액비율','과세표준','누진구간','세율','기본세액','재산세차감','종합부동산세(A)','농어촌특별세(B)','합계(A+B)','재산세(C)','도시지역분(D)','지방교육세(E)','보유세(A:E)'];
+    const jointRowOrder=['공시가격','공시가격(1인당)','기본공제','공제후','공정시장가액비율','과세표준','누진구간','세율','기본세액','재산세차감','종합부동산세(A:부부합산)','농어촌특별세(B:부부합산)','합계(A+B:부부합산)','재산세(C)','도시지역분(D)','지방교육세(E)','보유세(A:E)'];
     const numberFormat=new Intl.NumberFormat('ko-KR',{maximumFractionDigits:0});
     const percentFormat=new Intl.NumberFormat('ko-KR',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2});
 
@@ -200,6 +201,7 @@
         let 공제후=공시가격-기본공제;
         if(대상[0]==='1'&&연도>=2027&&공시가격<=140000)공제후=0;
         값['공시가격']=numberFormat.format(공시가격);
+        if(공동명의)값['공시가격(1인당)']=numberFormat.format(공시가격/2);
         값['기본공제']=numberFormat.format(기본공제);
 
         let 종합부동산세=null;
@@ -272,9 +274,9 @@
             '세율':percentFormat.format(세율),
             '기본세액':numberFormat.format(기본세액),
             '재산세차감':numberFormat.format(재산세차감),
-            '종합부동산세(A)':numberFormat.format(종합부동산세),
-            '농어촌특별세(B)':numberFormat.format(농어촌특별세),
-            '합계(A+B)':numberFormat.format(합계)
+            '종합부동산세(A:부부합산)':numberFormat.format(종합부동산세),
+            '농어촌특별세(B:부부합산)':numberFormat.format(농어촌특별세),
+            '합계(A+B:부부합산)':numberFormat.format(합계)
           });
         }
 
@@ -296,7 +298,8 @@
         값['도시지역분(D)']=numberFormat.format(도시지역분);
         값['지방교육세(E)']=numberFormat.format(지방교육세);
         값['보유세(A:E)']=numberFormat.format(보유세);
-        for(const 항목 of rowOrder)if(!Object.hasOwn(값,항목))값[항목]='-';
+        const 표시순서=공동명의?jointRowOrder:rowOrder;
+        for(const 항목 of 표시순서)if(!Object.hasOwn(값,항목))값[항목]='-';
 
         원시값[연도]={종합부동산세,재산세,보유세};
         결과[연도]=값;
@@ -334,7 +337,8 @@
     residenceInput.addEventListener('input',syncResidenceLimit);
     function renderResult(결과,공시가격,대상,연령,보유,거주){
       resultBody.replaceChildren();
-      const 표시항목=rowOrder;
+      const 공동명의=대상.endsWith('공동명의');
+      const 표시항목=공동명의?jointRowOrder:rowOrder;
       for(const 항목 of 표시항목){
         const tr=document.createElement('tr');
         if(항목==='보유세(A:E)')tr.className='total';
@@ -347,8 +351,9 @@
       const 금액값=값=>Number(String(값).replaceAll(',',''))||0;
       const 시작연도=years[0];
       const 종료연도=years[years.length-1];
-      const 시작종부세=금액값(결과[시작연도]['종합부동산세(A)']);
-      const 종료종부세=금액값(결과[종료연도]['종합부동산세(A)']);
+      const 종부세항목=공동명의?'종합부동산세(A:부부합산)':'종합부동산세(A)';
+      const 시작종부세=금액값(결과[시작연도][종부세항목]);
+      const 종료종부세=금액값(결과[종료연도][종부세항목]);
       const 시작보유세=금액값(결과[시작연도]['보유세(A:E)']);
       const 종료보유세=금액값(결과[종료연도]['보유세(A:E)']);
       changeSummary.textContent=`${시작연도}년에서 ${종료연도}년까지 종합부동산세는 ${numberFormat.format(시작종부세)}만원에서 ${numberFormat.format(종료종부세)}만원으로 변하고, 보유세는 ${numberFormat.format(시작보유세)}만원에서 ${numberFormat.format(종료보유세)}만원으로 변합니다.`;
