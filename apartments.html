@@ -224,7 +224,7 @@
     const rules={
       '1주택자_실거주':{base:{2026:120000,2027:140000,2028:140000},ratio:{2026:.6,2027:.7,2028:.7}},
       '1주택자_비거주':{base:{2026:120000,2027:90000,2028:90000},ratio:{2026:.6,2027:.7,2028:.7}},
-      '1주택자_실거주_공동명의':{base:{2026:90000,2027:110000,2028:110000},ratio:{2026:.6,2027:.7,2028:.7}}
+      '1주택자_실거주_공동명의':{base:{2026:90000,2027:90000,2028:90000},ratio:{2026:.6,2027:.7,2028:.7}}
     };
     const bracketOffsets={1:0,2:30000,3:60000,4:120000,5:250000,6:500000,7:940000};
     const numberFormat=new Intl.NumberFormat('ko-KR',{maximumFractionDigits:0});
@@ -240,7 +240,14 @@
       return 7;
     }
 
-    function calculatePropertyTax(price){
+    function calculatePropertyTax(price,scenario){
+      if(scenario.endsWith('_공동명의')){
+        const taxBase=price*.6;
+        if(taxBase<=6000)return taxBase*.001;
+        if(taxBase<=15000)return 6+(taxBase-6000)*.0015;
+        if(taxBase<=30000)return 19.5+(taxBase-15000)*.0025;
+        return 57+(taxBase-30000)*.004;
+      }
       const taxBase=price*(price<=30000?.43:price<=60000?.44:.45);
       if(taxBase<=6000)return taxBase*.0005;
       if(taxBase<=15000)return 3+(taxBase-6000)*.001;
@@ -271,35 +278,43 @@
 
     function calculateTax(totalPrice,scenario,age=0,holding=0,residence=0){
       const joint=scenario.endsWith('_공동명의');
-      const multiplier=joint?2:1;
-      const price=joint?totalPrice/2:totalPrice;
       const rule=rules[scenario];
       const result={};
       const raw={};
 
       for(const year of years){
         const base=rule.base[year];
-        const afterDeduction=price-base;
+        const afterDeduction=totalPrice-base;
         let comprehensive=0;
         let rural=0;
         let taxCredit=0;
         let deductionRate=0;
 
         if(afterDeduction>0){
-          const taxBase=afterDeduction*rule.ratio[year];
+          const taxableAfterDeduction=joint?Math.max(0,totalPrice/2-base):afterDeduction;
+          const taxBase=taxableAfterDeduction*rule.ratio[year];
           const bracket=bracketFor(taxBase);
           const basicTax=deductions[year][bracket]+(taxBase-bracketOffsets[bracket])*rates[year][bracket];
-          const propertyDeduction=taxBase*.45*.004;
-          comprehensive=basicTax-propertyDeduction;
-          const deduction=calculateDeduction(year,comprehensive,age,holding,residence);
-          taxCredit=deduction.credit;
-          deductionRate=deduction.rate;
-          comprehensive-=taxCredit;
+          if(joint){
+            const totalPropertyTax=calculatePropertyTax(totalPrice,scenario);
+            const halfPropertyTax=calculatePropertyTax(totalPrice/2,scenario);
+            const propertyDeduction=halfPropertyTax===0
+              ?0
+              :totalPropertyTax/2*(taxBase*.6*.004)/halfPropertyTax;
+            comprehensive=(basicTax-propertyDeduction)*2;
+          }else{
+            const propertyDeduction=taxBase*.45*.004;
+            comprehensive=basicTax-propertyDeduction;
+            const deduction=calculateDeduction(year,comprehensive,age,holding,residence);
+            taxCredit=deduction.credit;
+            deductionRate=deduction.rate;
+            comprehensive-=taxCredit;
+          }
           rural=comprehensive*.2;
         }
 
-        const propertyTax=calculatePropertyTax(price);
-        const cityTax=price*.45*.0014;
+        const propertyTax=calculatePropertyTax(totalPrice,scenario);
+        const cityTax=totalPrice*(joint?.6:.45)*.0014;
         const educationTax=propertyTax*.2;
         let holdingTax=comprehensive+rural+propertyTax+cityTax+educationTax;
 
@@ -310,14 +325,14 @@
 
         raw[year]={comprehensive:afterDeduction>0?comprehensive:null,propertyTax,holdingTax};
         result[year]={
-          comprehensive:comprehensive*multiplier,
-          taxCredit:taxCredit*multiplier,
+          comprehensive,
+          taxCredit,
           deductionRate,
-          rural:rural*multiplier,
-          propertyTax:propertyTax*multiplier,
-          cityTax:cityTax*multiplier,
-          educationTax:educationTax*multiplier,
-          holdingTax:holdingTax*multiplier
+          rural,
+          propertyTax,
+          cityTax,
+          educationTax,
+          holdingTax
         };
       }
       return result;
