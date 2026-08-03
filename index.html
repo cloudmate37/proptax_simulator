@@ -347,12 +347,10 @@
       const 금액값=값=>Number(String(값).replaceAll(',',''))||0;
       const 시작연도=years[0];
       const 종료연도=years[years.length-1];
-      const 공동명의배수=공동명의?2:1;
-      const 보유세항목=공동명의?'보유세(부부합산)':'보유세(A:E)';
-      const 시작종부세=금액값(결과[시작연도]['종합부동산세(A)'])*공동명의배수;
-      const 종료종부세=금액값(결과[종료연도]['종합부동산세(A)'])*공동명의배수;
-      const 시작보유세=금액값(결과[시작연도][보유세항목]);
-      const 종료보유세=금액값(결과[종료연도][보유세항목]);
+      const 시작종부세=금액값(결과[시작연도]['종합부동산세(A)']);
+      const 종료종부세=금액값(결과[종료연도]['종합부동산세(A)']);
+      const 시작보유세=금액값(결과[시작연도]['보유세(A:E)']);
+      const 종료보유세=금액값(결과[종료연도]['보유세(A:E)']);
       changeSummary.textContent=`${시작연도}년에서 ${종료연도}년까지 종합부동산세는 ${numberFormat.format(시작종부세)}만원에서 ${numberFormat.format(종료종부세)}만원으로 변하고, 보유세는 ${numberFormat.format(시작보유세)}만원에서 ${numberFormat.format(종료보유세)}만원으로 변합니다.`;
       resultSection.hidden=false;
     }
